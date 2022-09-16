@@ -1,0 +1,217 @@
+=> emails.xml
+-------------
+<?xml version="1.0" encoding="UTF-8"?>  
+<emails>  
+<email>  
+  <to>Vishal</to>  
+  <from>Sonu</from>  
+  <heading>Hello</heading>  
+  <body>Hello brother, how are you!</body>  
+</email>  
+<email>  
+  <to>Peter</to>  
+  <from>Jack</from>  
+  <heading>Birth day wish</heading>  
+  <body>Happy birth day Tom!</body>  
+</email>  
+<email>  
+  <to>James</to>  
+  <from>Jacalin</from>  
+  <heading>Morning walk</heading>  
+  <body>Please start morning walk to stay fit!</body>  
+</email>  
+<email>  
+  <to>Kartik</to>  
+  <from>Kumar</from>  
+  <heading>Health Tips</heading>  
+  <body>Smoking is injurious to health!</body>  
+</email>  
+<email>  
+  <to>Sonu</to>  
+  <from>Vishal</from>  
+  <heading>Hello</heading>  
+  <body>Hello brother I’m Good, how are you?</body>  
+</email>  
+<email>  
+  <to>James</to>  
+  <from>Sonu</from>  
+  <heading>Birth day wish</heading>  
+  <body>Happy birth day James!</body>  
+</email>  
+</emails> 
+
+
+Query : 1 Create Document with URI “/emails” and insert the above document.
+
+Ans :
+
+xquery version "1.0-ml";
+xdmp:document-load("C:\Users\Jenish Kanani\Desktop\marklogic-emailassignment\all-emails\emails.xml",
+<options xmlns="xdmp:document-load">
+  <uri>/emails.xml</uri>
+</options>)
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Query : 2 For Each Email in Doc “/emails” create two Documents one for one for user who sent the email  and one for who received the email. 
+Add to email with URI {/Outbox/from/ heading }, to the collections “email” and “outbox” and add from email with URI{/Inbox/to/ heading}, to the collection’s “inbox” and “email”.
+
+Ans : 
+
+=> xquery version "1.0-ml";
+
+for $doc in doc("/emails.xml")//email
+  let $fromValue := $doc/from/string()
+  let $toValue := $doc/to/string()
+  let $headingValue := $doc/heading/string()
+  return
+
+  xdmp:document-insert(
+    concat("/Outbox/",$fromValue,"/",$headingValue), 
+    $doc,
+    <options xmlns="xdmp:document-insert">
+     <permissions>{xdmp:default-permissions()}</permissions>
+     <collections>{
+       <collection>email</collection>,
+       <collection>outbox</collection>
+     }</collections>
+    </options>)
+
+=> xquery version "1.0-ml";
+
+for $doc in doc("/emails.xml")//email
+  let $fromValue := $doc/from/string()
+  let $toValue := $doc/to/string()
+  let $headingValue := $doc/heading/string()
+  return
+
+  xdmp:document-insert(
+    concat("/Inbox/",$toValue,"/",$headingValue), 
+    $doc,
+    <options xmlns="xdmp:document-insert">
+     <permissions>{xdmp:default-permissions()}</permissions>
+     <collections>{
+       <collection>inbox</collection>,
+       <collection>email</collection>
+     }</collections>
+    </options>)
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Query : 3 for each User retrieve the sent email and received email in below format.
+
+Ans :
+
+xquery version "1.0-ml";
+
+element result{
+for $username in fn:distinct-values((doc("/emails.xml")//to/string(), doc("/emails.xml")//from/string())) 
+  
+  return element user{
+    element username{$username},
+    element emails{
+      element inbox{
+          fn:collection("inbox")//to[string() = $username]/parent::email
+      },
+      element outbox{
+          fn:collection("outbox")//from[string() = $username]/parent::email
+      }
+    }
+  }
+}
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Query : 4 retrieve all the emails and group by from user.
+
+Ans:
+
+xquery version "1.0-ml";
+
+for $fromUser in fn:distinct-values((doc("/emails.xml")//email/from/string()))
+  return element emails{
+    doc("/emails.xml")//email/from[string() = $fromUser]/parent::email
+  }
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Query : 5 retrieve all the emails and group by  heading.
+
+Ans:
+
+xquery version "1.0-ml";
+
+for $heading in fn:distinct-values((doc("/emails.xml")//email/heading/string()))
+  return element email-group-by-heading{
+    doc("/emails.xml")//email/heading[string() = $heading]/parent::email
+  }
+  
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Query : 6 Retrieve all the emails related to James and sonu.
+
+Ans: 
+
+xquery version "1.0-ml";
+for $doc in doc("/emails.xml")//email
+  let $toValue := $doc/to/string()
+  let $fromValue := $doc/from/string()
+  
+  where $toValue = "James" or $fromValue = "Sonu"
+  return $doc
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Query : 7 Return the username who received two or lesser than two emails.
+
+Ans:
+
+xquery version "1.0-ml";
+
+for $userName in fn:distinct-values((doc("/emails.xml")//to/string(), doc("/emails.xml")//from/string()))
+   let $cnt := fn:count(fn:collection("inbox")//to[string() = $userName]/parent::email)
+   
+   where $cnt le 2
+   return element result{element cnt{$cnt},
+   element uname{$userName}}
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Query : 8 Retrieve all birthday wish Emails.
+
+Ans:
+
+xquery version "1.0-ml";
+for $email in doc("/emails.xml")//email
+  
+  let $heading := fn:lower-case($email/heading/string())
+  where $heading = fn:lower-case("Birth day wish")
+  return $email
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Query : 9 Write a Function which return Interval For given input start datetime, end datetime and interval duration(Day, Hours).  
+
+Ans : 
+
+xquery version "1.0-ml";
+
+declare function local:interval($startDateTime ,$endDateTime,$interval, $attr)
+{
+if($startDateTime le $endDateTime)
+then(
+  element interval{attribute attr{$attr}, 
+    element startdatetime{$startDateTime}, 
+    element enddatetime{$startDateTime+$interval}
+  },
+local:interval($startDateTime+$interval,$endDateTime,$interval,$attr+1))
+else ()
+};
+
+element interval-details{
+  local:interval(xs:dateTime("2022-09-20T01:10:00"),xs:dateTime("2022-09-30T01:10:00"),xs:dayTimeDuration("P4DT2H30M"), 1)
+} 
+  
+  
+
+
