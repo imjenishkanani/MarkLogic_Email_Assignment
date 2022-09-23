@@ -1,0 +1,82 @@
+---------------------------------------------------------------------------------------------------------------------------------
+1). Write query to Insert above xml into MarkLogic database  
+---------------------------------------------------------------------------------------------------------------------------------
+==>
+xquery version "1.0-ml";
+xdmp:document-load("C:\Users\Jenish Kanani\Desktop\MarkLogic Date Assignment\dateAss.xml",
+<options xmlns="xdmp:document-load">
+  <uri>/dateAss.xml</uri>
+</options>)
+
+
+---------------------------------------------------------------------------------------------------------------------------------
+2). Write Query to return All CreatedDttm and group by 
+	a.Year 
+	b.Day 
+	c.Month 
+----------------------------------------------------------------------------------------------------------------------------------
+(a) ==>
+
+let $year := for $dt in fn:distinct-values((doc("/dateAss.xml")//createdDttm/string()))
+  (:let $datime := concat(fn:distinct-values((fn:substring($dt, 1, 10))),"-", fn:distinct-values((fn:substring($dt, 12, 5)))):)
+  (:let $tim := fn:substring($dt, 12, 8):)
+  let $d := xs:date(fn:substring($dt, 1, 10))
+  (:let $dy := fn:substring($dt, 9, 2):)
+  let $year := fn:year-from-date($d)
+  
+  return $year
+      for $dye in fn:distinct-values(($year))
+        (:let $dtele := doc("/dateAss.xml")//createDttm/string()
+        let $d := xs:date(fn:substring($dtele, 1, 10)):)
+       
+         return element group-by-year{
+          for $tmp in doc("/dateAss.xml")//createdDttm
+          return 
+            if(fn:contains(xs:string($tmp), xs:string($dye)))
+            then 
+              $tmp
+            else
+              ()   
+        }
+        
+(b) ==>
+
+xquery version "1.0-ml";
+let $month := for $dt in fn:distinct-values((doc("/dateAss.xml")//createdDttm/string()))
+  let $date := xs:date(fn:substring($dt, 1,10))
+  (:let $month := fn:month-from-date($date) :)
+  let $month := fn:substring(xs:string($date), 6, 2)
+  
+  return $month
+  
+  for $dmonth in fn:distinct-values(($month))
+    return $dmonth
+    return element group-by-month{
+      for $dateElement in doc("/dateAss.xml")//createdDttm
+      return 
+        if(xs:string(fn:substring($dateElement, 6, 2)) eq xs:string($dmonth))
+        then
+          $dateElement
+        else
+           ()
+    }
+
+(c) ==>
+
+xquery version "1.0-ml";
+let $day := for $dt in fn:distinct-values((doc("/dateAss.xml")//createdDttm/string()))
+  let $date := xs:date(fn:substring($dt, 1,10))
+  let $day := fn:substring(xs:string($date), 9, 2)
+  
+  return $day
+  for $dday in fn:distinct-values(($day))
+    return element group-by-day{
+      for $dateElement in doc("/dateAss.xml")//createdDttm
+      return 
+        if(fn:string(fn:substring($dateElement, 9, 2)) eq xs:string($dday))
+        then
+          $dateElement
+        else
+          ()
+    }  
+    
